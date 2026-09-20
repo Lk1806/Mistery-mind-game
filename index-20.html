@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mystery Mind</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#090916;color:white;font-family:Arial,sans-serif}
+#app{width:min(100vw,56.25vh);min-height:100vh;margin:auto;padding:8px;background:linear-gradient(#32155b,#080817)}
+h1{text-align:center;color:#ffd43b;font-size:28px;margin:4px}.tag{text-align:center;font-size:11px;color:#bbb;margin-bottom:7px}
+.box{background:#ffffff12;border:1px solid #ffffff22;border-radius:14px;padding:9px;margin:7px 0}
+#round{text-align:center;color:#c9b7ed;font-weight:bold;font-size:13px}
+#q{text-align:center;font-size:17px;font-weight:bold;line-height:1.25;margin:7px 0}
+#time{text-align:center;font-size:32px;color:#ffd43b;font-weight:bold}
+.doors{display:flex;gap:6px}.slot{width:33.333%;height:185px;position:relative;perspective:600px}
+.answer{position:absolute;inset:0;border-radius:8px;background:#f4c44e;color:#241500;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:3px}
+.answer .emoji{font-size:42px}.answer b{font-size:13px}
+.door{position:absolute;inset:0;z-index:2;border:5px solid #9a603e;border-radius:8px;background:linear-gradient(90deg,#291043,#71338e,#291043);display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;transition:transform .8s}
+.door.open{transform:rotateY(-105deg);transform-origin:left}
+.door strong{color:#ffd43b;font-size:15px}.lock{font-size:36px}
+#msg{text-align:center;min-height:28px;color:#8ff0c0;font-size:14px;font-weight:bold}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+button{border:0;border-radius:8px;padding:10px 4px;font-size:12px;font-weight:bold;cursor:pointer}
+#start{background:#ffd43b;color:#111}#reveal{background:#22c55e}#next{background:#8b5cf6;color:#fff}#reset{background:#64748b;color:#fff}
+#score{text-align:center;font-size:14px;margin:5px}.history{font-size:10px;color:#bbb;max-height:70px;overflow:auto}
+.history div{border-bottom:1px solid #ffffff15;padding:4px}
+</style>
+</head>
+<body>
+<div id="app">
+<h1>🧠 MYSTERY MIND</h1>
+<div class="tag">YouTube Live • Mystery Door Challenge</div>
+
+<div class="box">
+<div id="round">ROUND 1</div>
+<div id="q">नीचे START दबाकर गेम शुरू करें</div>
+<div id="time">20</div>
+
+<div class="doors">
+<div class="slot"><div class="answer" id="a0"></div><div class="door" id="d0" onclick="pick(0)"><strong>DOOR 1</strong><div class="lock">🔒</div><small>चुनने के लिए दबाएँ</small></div></div>
+<div class="slot"><div class="answer" id="a1"></div><div class="door" id="d1" onclick="pick(1)"><strong>DOOR 2</strong><div class="lock">🔒</div><small>चुनने के लिए दबाएँ</small></div></div>
+<div class="slot"><div class="answer" id="a2"></div><div class="door" id="d2" onclick="pick(2)"><strong>DOOR 3</strong><div class="lock">🔒</div><small>चुनने के लिए दबाएँ</small></div></div>
+</div>
+
+<div id="msg"></div>
+<div id="score">🏆 Score: 0</div>
+<div class="buttons">
+<button id="start" onclick="startGame()">▶ START</button>
+<button id="reveal" onclick="showAnswer()">🔑 REVEAL</button>
+<button id="next" onclick="nextGame()">➡ NEXT</button>
+<button id="reset" onclick="resetGame()">↻ RESET</button>
+</div>
+</div>
+
+<div class="box">
+<div class="history" id="history">Round history यहाँ आएगी।</div>
+</div>
+</div>
+
+<script>
+var puzzles=[
+{q:"जितना सूखता है, उतना ही गीला करता है—क्या है?",correct:2,x:[["🧻","कागज़"],["📖","किताब"],["🧖","तौलिया"]]},
+{q:"क्रम पूरा करें: 2, 6, 12, 20, ?",correct:1,x:[["28","अगला नंबर 28"],["30","अगला नंबर 30"],["32","अगला नंबर 32"]]},
+{q:"पेड़ पर 5 पक्षी थे। 1 को गोली लगी। कितने पक्षी बचे?",correct:2,x:[["5","सभी बैठे हैं"],["4","चार बचे"],["0","बाकी उड़ गए"]]},
+{q:"चेहरा और दो हाथ होते हैं, लेकिन पैर नहीं—क्या है?",correct:0,x:[["🕐","घड़ी"],["🤖","रोबोट"],["🪑","कुर्सी"]]}
+];
+
+var n=0,score=0,chosen=-1,running=false,t=20,timer=null;
+
+function E(id){return document.getElementById(id)}
+
+function load(){
+ var p=puzzles[n%puzzles.length];
+ E("round").innerHTML="ROUND "+(n+1);
+ E("q").innerHTML=p.q;
+ E("time").innerHTML="20";
+ E("msg").innerHTML="";
+ chosen=-1;
+ running=false;
+ for(var i=0;i<3;i++){
+   E("d"+i).className="door";
+   E("a"+i).innerHTML='<div class="emoji">'+p.x[i][0]+'</div><b>'+p.x[i][1]+'</b>';
+ }
+}
+
+function startGame(){
+ clearInterval(timer);
+ load();
+ running=true;
+ t=20;
+ E("msg").innerHTML="Chat में 1, 2 या 3 चुनें!";
+ timer=setInterval(function(){
+   t--;
+   E("time").innerHTML=t;
+   if(t<=0){
+     clearInterval(timer);
+     running=false;
+     E("msg").innerHTML="⏰ TIME UP! अब REVEAL दबाएँ।";
+   }
+ },1000);
+}
+
+function pick(i){
+ if(!running){
+   E("msg").innerHTML="पहले START दबाएँ।";
+   return;
+ }
+ chosen=i;
+ E("msg").innerHTML="🔒 Door "+(i+1)+" चुना गया!";
+}
+
+function showAnswer(){
+ clearInterval(timer);
+ running=false;
+ var p=puzzles[n%puzzles.length];
+ var openDoor=(chosen<0)?p.correct:chosen;
+ E("d"+openDoor).className="door open";
+ if(chosen==p.correct){
+   score+=10;
+   E("score").innerHTML="🏆 Score: "+score;
+   E("msg").innerHTML="🎉 सही जवाब! +10 Points";
+ }else{
+   E("msg").innerHTML="😱 सही जवाब Door "+(p.correct+1)+" के अंदर था!";
+ }
+}
+
+function nextGame(){
+ n++;
+ startGame();
+}
+
+function resetGame(){
+ clearInterval(timer);
+ n=0;score=0;
+ E("score").innerHTML="🏆 Score: 0";
+ load();
+ E("msg").innerHTML="Game reset हो गया। START दबाएँ।";
+}
+
+load();
+</script>
+</body>
+</html>
